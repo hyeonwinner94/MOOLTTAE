@@ -1,0 +1,40 @@
+// Source: Korea Hydrographic and Oceanographic Agency marine activity forecast points.
+// Dataset: https://www.data.go.kr/data/15145389/fileData.do (updated 2025-08-25)
+const officialFishingSpots = [
+  ["SF15", "\uc2e0\uc2dc\ub3c4", "\uc11c\ud574", "\uc804\ub77c\ubd81\ub3c4 \uad70\uc0b0\uc2dc \uc625\ub3c4\uba74", 35.81, 126.4488],
+  ["SF16", "\uc2e0\uc9c0\ub3c4", "\ub0a8\ud574", "\uc804\ub77c\ub0a8\ub3c4 \uc644\ub3c4\uad70 \uc2e0\uc9c0\uba74", 34.3522, 126.843],
+  ["SF1", "\uc0c1\uc655\ub4f1\ub3c4", "\uc11c\ud574", "\uc804\ub77c\ubd81\ub3c4 \ubd80\uc548\uad70 \uc704\ub3c4\uba74", 35.66680556, 126.1108056],
+  ["SF2", "\uac00\uac70\ub3c4", "\uc11c\ud574", "\uc804\ub77c\ub0a8\ub3c4 \uc2e0\uc548\uad70 \ud751\uc0b0\uba74", 34.07308333, 125.0880556],
+  ["SF3", "\ucd94\uc790\ub3c4", "\uc81c\uc8fc", "\uc81c\uc8fc\uc2dc \ucd94\uc790\uba74", 33.96186194, 126.300375],
+  ["SF4", "\uc5f0\ub3c4", "\ub0a8\ud574", "\uc804\ub77c\ub0a8\ub3c4 \uc5ec\uc218\uc2dc \ub0a8\uba74", 34.41282722, 127.7888208],
+  ["SF5", "\uc6b8\uc0b0", "\ub3d9\ud574", "\uc6b8\uc0b0\uad11\uc5ed\uc2dc \ub3d9\uad6c", 35.47250013, 129.4124643],
+  ["SF6", "\uc6b8\uc9c4 \ud6c4\uc815", "\ub3d9\ud574", "\uacbd\uc0c1\ubd81\ub3c4 \uc6b8\uc9c4\uad70 \uc8fd\ubcc0\uba74", 37.07441405, 129.4101763],
+  ["SF7", "\uc11c\uadc0\ud3ec", "\uc81c\uc8fc", "\uc81c\uc8fc\ub3c4 \uc11c\uadc0\ud3ec\uc2dc", 33.23797222, 126.6080833],
+  ["SF8", "\uc695\uc9c0\ub3c4", "\ub0a8\ud574", "\uacbd\uc0c1\ub0a8\ub3c4 \ud1b5\uc601\uc2dc \uc695\uc9c0\uba74", 34.62111111, 128.2561111],
+  ["SF9", "\ud558\uc870\ub3c4", "\uc11c\ud574", "\uc804\ub77c\ub0a8\ub3c4 \uc9c4\ub3c4\uad70 \uc870\ub3c4\uba74", 34.277575, 126.0937208],
+  ["SF10", "\uc131\uc0b0\ud3ec", "\uc81c\uc8fc", "\uc81c\uc8fc\ub3c4 \uc11c\uadc0\ud3ec\uc2dc \uc131\uc0b0\uc74d", 33.47744444, 126.9319167],
+  ["SF11", "\uad6d\ud654\ub3c4", "\uc11c\ud574", "\uacbd\uae30\ub3c4 \ud654\uc131\uc2dc \uc6b0\uc815\uc74d", 37.06027778, 126.5581667],
+  ["SF12", "\uc678\uc5f0\ub3c4", "\uc11c\ud574", "\ucda9\uccad\ub0a8\ub3c4 \ubcf4\ub839\uc2dc \uc624\ucc9c\uba74", 36.23161111, 126.0645556],
+  ["SF13", "\ubcf4\uae38\ub3c4", "\ub0a8\ud574", "\uc804\ub77c\ub0a8\ub3c4 \uc644\ub3c4\uad70 \ubcf4\uae38\uba74", 34.11058333, 126.5038611],
+  ["SF14", "\uac70\uc81c\ub3c4", "\ub0a8\ud574", "\uacbd\uc0c1\ub0a8\ub3c4 \uac70\uc81c\uc2dc", 34.90544444, 128.7629444]
+].map(([code, name, region, area, lat, lng]) => ({
+  id: `official-${code.toLowerCase()}`,
+  name,
+  region,
+  area,
+  lat,
+  lng,
+  difficulty: "\ud604\uc9c0 \ud655\uc778",
+  level: "medium",
+  fish: [],
+  type: "\uc120\uc0c1",
+  season: "\ud604\uc9c0 \ud655\uc778",
+  tide: "\ud604\uc9c0 \ud655\uc778",
+  desc: "\uad6d\ub9bd\ud574\uc591\uc870\uc0ac\uc6d0 \uc0dd\ud65c\ud574\uc591\uc608\ubcf4\uc9c0\uc218\uc5d0\uc11c \uc81c\uacf5\ud558\ub294 \uc120\uc0c1 \ubc14\ub2e4\ub09a\uc2dc \uc9c0\uc810\uc785\ub2c8\ub2e4.",
+  tip: "\uae30\uc0c1, \ubb3c\ub54c, \ucd9c\ud56d \uc5ec\ubd80\uc640 \uc2b9\uc120 \uc7a5\uc18c\ub294 \ucd9c\uc870 \uc804 \ud604\uc9c0 \uc120\uc0ac\uc5d0 \ud655\uc778\ud558\uc138\uc694.",
+  source: "\uad6d\ub9bd\ud574\uc591\uc870\uc0ac\uc6d0",
+  sourceCode: code,
+  checkedAt: "2026-06-01",
+  sources: [{ label: "\uacf5\uacf5\ub370\uc774\ud130\ud3ec\ud138", url: "https://www.data.go.kr/data/15145389/fileData.do" }],
+  official: true
+}));

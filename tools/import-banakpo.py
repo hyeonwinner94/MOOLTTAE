@@ -1,0 +1,153 @@
+"""Import Banakpo map points and their public detail metadata."""
+
+from __future__ import annotations
+
+import html
+import json
+import re
+import time
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+MAP_URL = "http://www.banakpo.co.kr/point/pointListMap.do"
+DETAIL_URL = "http://www.banakpo.co.kr/point/pointList.do"
+SOURCE_URL = "http://www.banakpo.co.kr/frame/webMain.do"
+
+MARKER_RE = re.compile(
+    r'addMarker\("([\d.-]+)",\s*"([\d.-]+)",\s*"([^"]+)",\s*"([^"]+)","([^"]+)"\);'
+)
+DESCRIPTION_RE = re.compile(r'<meta name="description"\s+content="([^"]*)"', re.I)
+
+
+def request(url: str, data: dict[str, str]) -> str:
+    body = urllib.parse.urlencode(data).encode()
+    req = urllib.request.Request(url, data=body, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=20) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
+def split_detail(description: str, label: str, next_label: str | None) -> str:
+    start = description.find(f"{label} :")
+    if start < 0:
+        return ""
+    start += len(label) + 2
+    end = description.find(f"{next_label} :", start) if next_label else len(description)
+    return description[start:end].strip() if end >= 0 else description[start:].strip()
+
+
+def classify_region(lat: float, lng: float) -> str:
+    if lat < 33.7:
+        return "제주"
+    if lat < 35.5:
+        return "남해"
+    if lng >= 128.2:
+        return "동해"
+    return "서해"
+
+
+def infer_type(name: str) -> str:
+    if "방파제" in name:
+        return "방파제"
+    if "선착장" in name or "항" in name:
+        return "항구·선착장"
+    if any(token in name for token in ("도", "섬", "여", "암", "바위")):
+        return "섬·갯바위"
+    return "바다낚시 포인트"
+
+
+def parse_fish(value: str) -> list[str]:
+    return list(dict.fromkeys(item.strip() for item in value.split(",") if item.strip()))
+
+
+def detail_url(point_id: str, lat: float, lng: float) -> str:
+    params = urllib.parse.urlencode(
+        {
+            "cate1": "1",
+            "cate2": "1",
+            "c_latitude": lat,
+            "c_longitude": lng,
+            "point_level": "8",
+            "mapmode": "3",
+            "point_seq_desc": point_id,
+        }
+    )
+    return f"{DETAIL_URL}?{params}"
+
+
+def main() -> None:
+    map_html = request(MAP_URL, {"cate1": "1", "cate2": "1"})
+    markers = MARKER_RE.findall(map_html)
+    points = []
+
+    for index, (lat_text, lng_text, point_id, name, marker_type) in enumerate(markers, 1):
+        lat, lng = float(lat_text), float(lng_text)
+        detail_html = request(
+            DETAIL_URL,
+            {
+                "point_seq_desc": point_id,
+                "c_latitude": lat_text,
+                "c_longitude": lng_text,
+                "point_level": "8",
+                "mapmode": "3",
+                "cate1": "1",
+                "cate2": "1",
+            },
+        )
+        match = DESCRIPTION_RE.search(detail_html)
+        description = html.unescape(match.group(1)).strip() if match else ""
+        fields = {
+            "location": split_detail(description, "위치", "시즌"),
+            "season": split_detail(description, "시즌", "채비"),
+            "rig": split_detail(description, "채비", "수심"),
+            "depth": split_detail(description, "수심", "미끼"),
+            "bait": split_detail(description, "미끼", "어종"),
+            "fish": split_detail(description, "어종", "교통"),
+            "traffic": split_detail(description, "교통", None),
+        }
+        point_source_url = detail_url(point_id, lat, lng)
+        fish = parse_fish(fields["fish"])
+        points.append(
+            {
+                "id": f"banakpo-{point_id}",
+                "name": name.strip(),
+                "region": classify_region(lat, lng),
+                "area": fields["location"] or "상세 위치는 원문 확인",
+                "lat": lat,
+                "lng": lng,
+                "difficulty": "현장 확인",
+                "level": "medium",
+                "fish": fish,
+                "type": infer_type(name),
+                "season": fields["season"] or "현지 확인",
+                "tide": "현지 확인",
+                "desc": f"바낚포 전국 지도에서 수집한 {name.strip()} 위치 기반 포인트입니다. 원문 상세 정보를 확인해 보세요.",
+                "tip": "출조 전 원문과 현장 안내를 확인하세요. 출입 제한, 기상, 물때는 수시로 달라질 수 있습니다.",
+                "source": "바낚포",
+                "sourceCode": point_id,
+                "checkedAt": "2026-06-02",
+                "sources": [{"label": "바낚포 원문", "url": point_source_url}],
+                "catalog": True,
+                "markerType": marker_type,
+                "depth": fields["depth"],
+                "rig": fields["rig"],
+                "bait": fields["bait"],
+                "traffic": fields["traffic"],
+            }
+        )
+        if index % 25 == 0:
+            print(f"fetched {index}/{len(markers)}")
+        time.sleep(0.05)
+
+    output = (
+        "// Generated by tools/import-banakpo.py from public Banakpo pages.\n"
+        f"// Source: {SOURCE_URL} (checked 2026-06-02)\n"
+        f"const banakpoFishingSpots = {json.dumps(points, ensure_ascii=False, indent=2)};\n"
+    )
+    (ROOT / "banakpo-spots.js").write_text(output, encoding="utf-8")
+    print(f"wrote {len(points)} points")
+
+
+if __name__ == "__main__":
+    main()

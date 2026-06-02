@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">물때</string>
+    <string name="title_activity_main">물때</string>
+    <string name="package_name">kr.co.moolttae.fishingmap</string>
+    <string name="custom_url_scheme">kr.co.moolttae.fishingmap</string>
+</resources>

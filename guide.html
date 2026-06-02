@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="매듭법과 대상어별 바다·민물 낚시 채비를 그림으로 확인하세요." />
+    <title>물때 - 낚시 가이드</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#2c7880" />
+    <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="물때 지도 홈">
+        <span class="brand-mark">ㅁ</span>
+        <span class="brand-copy"><strong>물때</strong><small>낚시 가이드</small></span>
+      </a>
+      <nav class="topnav" aria-label="주 메뉴">
+        <a href="./index.html">포인트 찾기</a>
+        <a class="active" href="./guide.html">낚시 가이드</a>
+      </nav>
+      <a class="guide-top-return" href="./index.html">지도로 돌아가기</a>
+    </header>
+    <nav class="mobile-nav" aria-label="모바일 주 메뉴">
+      <a href="./index.html?mode=sea">바다 포인트</a>
+      <a href="./index.html?mode=freshwater">민물 포인트</a>
+      <a class="active" href="./guide.html">낚시 가이드</a>
+    </nav>
+    <main class="guide-view open" aria-label="낚시 가이드">
+      <aside class="guide-sidebar">
+        <p class="eyebrow">FISHING GUIDE</p>
+        <h1>그림으로 익히는<br /><em>낚시의 기본</em></h1>
+        <p class="guide-intro">매듭과 채비의 연결 순서를 현장에서 다시 볼 수 있도록 자체 도식으로 정리했습니다.</p>
+        <div id="guideCategoryFilters" class="guide-category-list"></div>
+      </aside>
+      <section class="guide-catalog">
+        <div class="guide-heading">
+          <div>
+            <p class="eyebrow">LEARN THE BASICS</p>
+            <h2 id="guideCategoryTitle">매듭법</h2>
+            <p id="guideCategoryDescription"></p>
+          </div>
+        </div>
+        <div id="guideCardGrid" class="guide-card-grid"></div>
+      </section>
+      <aside id="guideDetail" class="guide-detail" aria-live="polite"></aside>
+    </main>
+    <script src="./guide-data.js"></script>
+    <script src="./guide-page.js"></script>
+    <script src="./pwa-register.js"></script>
+  </body>
+</html>
