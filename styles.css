@@ -161,6 +161,7 @@ button { cursor: pointer; }
 .spot-meta span { padding: 3px 6px; color: #698184; border-radius: 4px; background: #f2f6f4; font-size: 10px; }
 .spot-meta .official-badge { color: var(--sea-dark); background: #e4f2ef; font-weight: 700; }
 .spot-meta .catalog-badge { color: #4f4a8c; background: #eeecfb; font-weight: 700; }
+.spot-meta .technique-badge { color: #8a562b; background: #fff2dc; font-weight: 800; }
 .save-button { align-self: flex-start; margin: 10px 10px 0 0; color: #b4c2c1; border: 0; background: transparent; font-size: 20px; line-height: 1; }
 .save-button.saved { color: var(--coral); }
 
@@ -228,6 +229,10 @@ button { cursor: pointer; }
 .catalog-grid { display: grid; gap: 6px; }
 .catalog-grid span { padding: 8px; color: var(--muted); border-radius: 6px; background: #f4f6f5; font-size: 11px; line-height: 1.55; }
 .catalog-grid b { display: block; margin-bottom: 2px; color: var(--sea-dark); font-size: 10px; }
+.technique-fit-list { display: grid; gap: 6px; }
+.technique-fit { padding: 9px 10px; border: 1px solid #f0dfc3; border-radius: 7px; background: #fff8eb; }
+.technique-fit b { display: block; color: #8a562b; font-size: 11px; }
+.technique-fit span { display: block; margin-top: 4px; color: #6c7f7c; font-size: 10px; line-height: 1.5; }
 
 .guide-view {
   display: none; min-height: calc(100vh - 74px); grid-template-columns: 250px minmax(0, 1fr) 340px;

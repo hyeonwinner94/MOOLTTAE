@@ -40,6 +40,17 @@ let spots = seaSpots;
 const MAX_LIST_ITEMS = 180;
 const primaryFish = ["\uc6b0\ub7ed", "\uad11\uc5b4", "\uc804\uac31\uc774", "\uac10\uc131\ub3d4", "\ub18d\uc5b4", "\ubcfc\ub77d", "\ucc38\ub3d4", "\ubcb5\uc5d0\ub3d4", "\uac11\uc624\uc9d5\uc5b4", "\uace0\ub4f1\uc5b4", "\uc0bc\uce58", "\uac08\uce58"];
 const freshwaterPrimaryFish = ["붕어", "잉어", "배스", "쏘가리", "송어", "누치", "피라미", "빙어", "장어", "꺽지"];
+const fishingTechniquePresets = [
+  { key: "lure", label: "루어 포인트", fish: ["우럭", "볼락", "농어", "광어", "삼치"], min: 15 },
+  { key: "surf", label: "원투 포인트", fish: ["보리멸", "도다리", "광어", "감성돔", "장어"], min: 12 },
+  { key: "float", label: "찌낚시 포인트", fish: ["감성돔", "벵에돔", "참돔", "학꽁치"], min: 17 },
+  { key: "gure", label: "벵에돔 후보", fish: ["벵에돔"], min: 14 },
+  { key: "blackPorgy", label: "감성돔 후보", fish: ["감성돔"], min: 13 },
+  { key: "eging", label: "에깅 포인트", fish: ["무늬오징어", "갑오징어"], min: 10 },
+  { key: "light", label: "볼락/라이트게임", fish: ["볼락", "전갱이", "우럭"], min: 13 },
+  { key: "seabass", label: "농어 포인트", fish: ["농어"], min: 15 },
+  { key: "boat", label: "선상/카약 후보", fish: ["우럭", "광어", "참돔", "문어"], min: 12 }
+];
 
 const fishSeasonMonths = {
   "\uac10\uc131\ub3d4": [3, 4, 5, 6, 10, 11],
@@ -69,6 +80,7 @@ const state = {
   fishQuery: "",
   category: null,
   difficulty: null,
+  technique: null,
   month: null,
   bestOnly: false,
   source: null,
@@ -79,6 +91,7 @@ const state = {
 };
 
 const difficultyLabel = { easy: "초급", medium: "중급", hard: "숙련" };
+const techniqueLabelMap = Object.fromEntries(fishingTechniquePresets.map((preset) => [preset.key, preset.label]));
 const markerMap = new Map();
 const map = L.map("map", { zoomControl: false }).setView([35.86, 127.82], 7);
 const catalogRenderer = L.canvas({ padding: 0.5, tolerance: 12 });
@@ -198,6 +211,143 @@ function getAnalyzedDifficulty(spot) {
   return { level: "medium", label: "중급", inferred: true };
 }
 
+function getSpotText(spot) {
+  return [
+    spot.name,
+    spot.area,
+    spot.type,
+    spot.season,
+    spot.tide,
+    spot.depth,
+    spot.bottom,
+    spot.rig,
+    spot.bait,
+    spot.traffic,
+    spot.desc,
+    spot.tip,
+    ...(spot.fish || [])
+  ].filter(Boolean).join(" ");
+}
+
+function getDepthStats(spot) {
+  const depths = [...`${spot.depth || ""}`.matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+  return {
+    min: depths.length ? Math.min(...depths) : null,
+    max: depths.length ? Math.max(...depths) : null,
+    avg: depths.length ? depths.reduce((sum, value) => sum + value, 0) / depths.length : null,
+    known: depths.length > 0
+  };
+}
+
+function depthInRange(depth, min, max) {
+  if (!depth.known) return false;
+  return depth.max >= min && depth.min <= max;
+}
+
+function addTechniqueScore(result, score, reason) {
+  result.score += score;
+  if (reason && !result.reasons.includes(reason)) result.reasons.push(reason);
+}
+
+function getTechniqueFit(spot, key) {
+  const text = getSpotText(spot);
+  const depth = getDepthStats(spot);
+  const fish = new Set(spot.fish || []);
+  const result = { key, label: techniqueLabelMap[key] || key, score: 0, reasons: [] };
+  const hasAnyFish = (...names) => names.some((name) => fish.has(name));
+  const has = (pattern) => pattern.test(text);
+  const rocky = has(/\b(?:R|G|St|Cb)\b|암반|자갈|돌밭|여밭|수중여|간출암|갯바위|테트라|석축|방파제|외항/);
+  const sand = has(/\b(?:S|SSh|Sh|fS|GMS)\b|모래|사질|패각|해변|백사장|갯벌|펄|항내|완만/);
+  const depthChange = has(/급심|물골|등심|수심 변화|턱|곶부리|항 입구|입구|외항|조류|와류|섬 사이/) || (depth.known && depth.max - depth.min >= 4);
+  const harbor = has(/방파제|항구|선착장|포구|항 입구|외항|내항/);
+  const rocks = has(/갯바위|곶부리|여밭|수중여|간출암|암초|직벽/);
+  const current = has(/조류|흐름|물골|초들물|중들물|중날물|와류|하구|파도|너울|탁도|섬 사이|곶부리/);
+  const beach = has(/해변|백사장|모래밭|갯벌|사질|완만/);
+  const boat = has(/선상|카약|낚싯배|출항|어초|수중여|급심|물골/);
+  const clearRock = rocky && has(/맑은|청물|얕은|여밭|갯바위|외항/);
+  const mudRockEdge = rocky && has(/펄|갯벌|자갈|경계|항 입구|완만|와류/);
+
+  const targetBoost = (names, label = "대상 어종 확인") => {
+    if (hasAnyFish(...names)) addTechniqueScore(result, 3, label);
+  };
+
+  if (key === "lure") {
+    if (rocky) addTechniqueScore(result, 3, "암반·자갈·구조물 지형");
+    if (depthInRange(depth, 3, 12)) addTechniqueScore(result, 3, "루어권 수심 3-12m");
+    if (depthChange) addTechniqueScore(result, 4, "수심 변화·물골 단서");
+    if (harbor) addTechniqueScore(result, 3, "방파제 끝·항 입구권");
+    if (rocks) addTechniqueScore(result, 4, "갯바위·여밭 지형");
+    if (current) addTechniqueScore(result, 3, "조류 흐름 단서");
+    targetBoost(["우럭", "볼락", "농어", "광어", "삼치"]);
+  } else if (key === "surf") {
+    if (sand) addTechniqueScore(result, 4, "모래·패각·갯벌 지형");
+    if (depthInRange(depth, 1.5, 6)) addTechniqueScore(result, 3, "원투권 수심 1.5-6m");
+    if (beach) addTechniqueScore(result, 5, "완만한 해변·항내 단서");
+    if (harbor) addTechniqueScore(result, 2, "항내·방파제 접근성");
+    if (depthChange) addTechniqueScore(result, 2, "물골 주변 단서");
+    targetBoost(["보리멸", "도다리", "광어", "감성돔", "장어"]);
+  } else if (key === "float") {
+    if (rocky) addTechniqueScore(result, 4, "암반·자갈·돌밭");
+    if (depthInRange(depth, 3, 10)) addTechniqueScore(result, 4, "찌낚시권 수심 3-10m");
+    if (depthChange) addTechniqueScore(result, 4, "수심층 변화");
+    if (harbor) addTechniqueScore(result, 3, "방파제 외항·항 입구");
+    if (rocks) addTechniqueScore(result, 5, "갯바위·곶부리·수중여");
+    if (current) addTechniqueScore(result, 5, "조류 흐름");
+    targetBoost(["감성돔", "벵에돔", "참돔", "학꽁치"]);
+  } else if (key === "gure") {
+    if (clearRock) addTechniqueScore(result, 5, "얕은 암반·여밭·맑은 물 단서");
+    if (depthInRange(depth, 2, 8)) addTechniqueScore(result, 4, "벵에돔권 수심 2-8m");
+    if (current) addTechniqueScore(result, 4, "조류 흐름");
+    if (rocks || harbor) addTechniqueScore(result, 3, "갯바위·방파제 외항");
+    targetBoost(["벵에돔"], "벵에돔 어종 확인");
+  } else if (key === "blackPorgy") {
+    if (mudRockEdge) addTechniqueScore(result, 5, "암반+펄·자갈 경계 단서");
+    if (depthInRange(depth, 3, 12)) addTechniqueScore(result, 4, "감성돔권 수심 3-12m");
+    if (harbor || rocks) addTechniqueScore(result, 3, "항 입구·갯바위");
+    if (current) addTechniqueScore(result, 3, "완만한 흐름·와류 단서");
+    targetBoost(["감성돔"], "감성돔 어종 확인");
+  } else if (key === "eging") {
+    if (rocky) addTechniqueScore(result, 3, "얕은 여밭·암반 지형");
+    if (depthInRange(depth, 2, 8)) addTechniqueScore(result, 4, "에깅권 수심 2-8m");
+    if (harbor) addTechniqueScore(result, 3, "항구·방파제 주변");
+    if (has(/해조|몰|수초|여밭|얕은/)) addTechniqueScore(result, 3, "해조류 가능 지형");
+    targetBoost(["무늬오징어", "갑오징어"]);
+  } else if (key === "light") {
+    if (rocky) addTechniqueScore(result, 4, "석축·테트라·암반 구조물");
+    if (depthInRange(depth, 1, 6)) addTechniqueScore(result, 3, "라이트게임권 수심 1-6m");
+    if (harbor) addTechniqueScore(result, 4, "항내·방파제 접근성");
+    if (has(/조명|야간|집어등|내항|테트라|석축/)) addTechniqueScore(result, 4, "야간 조명·항내 구조물");
+    targetBoost(["볼락", "전갱이", "우럭"]);
+  } else if (key === "seabass") {
+    if (rocky || sand) addTechniqueScore(result, 3, "여밭·하구권 바닥 단서");
+    if (depthInRange(depth, 1.5, 8)) addTechniqueScore(result, 4, "농어권 수심 1.5-8m");
+    if (current) addTechniqueScore(result, 5, "흐름·탁도·파도 단서");
+    if (harbor || rocks || has(/하구|강 하구/)) addTechniqueScore(result, 4, "하구·항 입구·갯바위");
+    targetBoost(["농어"], "농어 어종 확인");
+  } else if (key === "boat") {
+    if (boat) addTechniqueScore(result, 5, "선상·카약·어초·물골 단서");
+    if (depthInRange(depth, 10, 40)) addTechniqueScore(result, 5, "선상권 수심 10-40m");
+    if (depthChange) addTechniqueScore(result, 4, "연안 급심·지형 변화");
+    targetBoost(["우럭", "광어", "참돔", "문어"]);
+  }
+
+  if (!depth.known && (harbor || rocks || beach)) addTechniqueScore(result, 1, "수심 미확인·지형 대체 판단");
+  result.reasons = result.reasons.slice(0, 4);
+  return result;
+}
+
+function getSelectedTechniqueFit(spot) {
+  return state.technique ? getTechniqueFit(spot, state.technique) : null;
+}
+
+function getTopTechniqueFits(spot) {
+  return fishingTechniquePresets
+    .map((preset) => getTechniqueFit(spot, preset.key))
+    .filter((fit) => fit.score >= 7)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+}
+
 function getMonthOpportunity(spot, month) {
   if (!month) return { fish: [], explicit: false, score: 0, best: false };
   const profile = getMonthProfile(spot).find((item) => item.month === Number(month));
@@ -249,6 +399,7 @@ function setMode(mode) {
   document.getElementById("detailPanel").classList.remove("open");
   document.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
   document.querySelector(".fish-filter-group").classList.remove("is-hidden");
+  document.querySelector(".technique-filter-group").classList.toggle("is-hidden", mode === "freshwater");
   document.querySelector(".season-filter-group").classList.toggle("is-hidden", mode === "freshwater");
   document.getElementById("brandSubtitle").textContent = mode === "freshwater" ? "민물 노지 큐레이션 지도" : "바다낚시 포인트 지도";
   document.getElementById("introDescription").textContent = mode === "freshwater" ? "교차 확인한 큐레이션과 전국 수역 탐색 후보를 함께 살펴보세요." : "바다의 결을 따라 나만의 포인트를 찾아보세요.";
@@ -267,6 +418,7 @@ function renderChips() {
   renderChipGroup("fishFilters", state.mode === "sea" ? primaryFish : freshwaterPrimaryFish, "fish");
   renderChipGroup("categoryFilters", state.mode === "sea" ? ["방파제·방조제", "섬·갯바위", "항구·선착장", "기타"] : ["저수지", "수로", "하천", "호수·강"], "category");
   renderChipGroup("difficultyFilters", ["초급", "중급", "숙련"], "difficulty");
+  renderChipGroup("techniqueFilters", fishingTechniquePresets.map((preset) => preset.label), "technique");
   renderChipGroup("sourceFilters", state.mode === "sea" ? ["바낚포", "DanFish", "공공데이터"] : ["큐레이션", "수역 탐색"], "source");
 }
 
@@ -301,11 +453,12 @@ function renderChipGroup(containerId, values, key) {
   container.innerHTML = "";
   values.forEach((value) => {
     const button = document.createElement("button");
-    button.className = `chip ${state[key] === value ? "active" : ""}`;
+    const actualValue = key === "technique" ? fishingTechniquePresets.find((preset) => preset.label === value)?.key : value;
+    button.className = `chip ${state[key] === actualValue ? "active" : ""}`;
     button.type = "button";
     button.textContent = value;
     button.addEventListener("click", () => {
-      state[key] = state[key] === value ? null : value;
+      state[key] = state[key] === actualValue ? null : actualValue;
       render();
     });
     container.appendChild(button);
@@ -314,19 +467,26 @@ function renderChipGroup(containerId, values, key) {
 
 function filteredSpots() {
   const query = state.query.trim().toLowerCase();
-  return spots.filter((spot) => {
+  const filtered = spots.filter((spot) => {
     const matchesQuery = !query || `${spot.name} ${spot.area} ${spot.fish.join(" ")}`.toLowerCase().includes(query);
     const matchesRegion = !state.region || spot.region === state.region;
     const matchesFish = !state.fish || spot.fish.includes(state.fish);
     const matchesFishQuery = !state.fishQuery || spot.fish.some((name) => name.includes(state.fishQuery));
     const matchesCategory = !state.category || getSpotCategory(spot) === state.category;
     const matchesDifficulty = !state.difficulty || getAnalyzedDifficulty(spot).label === state.difficulty;
+    const techniqueFit = getSelectedTechniqueFit(spot);
+    const techniquePreset = fishingTechniquePresets.find((preset) => preset.key === state.technique);
+    const matchesTechnique = !state.technique || (state.mode === "sea" && techniqueFit.score >= (techniquePreset?.min || 7));
     const monthOpportunity = getMonthOpportunity(spot, state.month);
     const matchesMonth = !state.month || (state.bestOnly ? monthOpportunity.best : monthOpportunity.fish.length > 0);
     const matchesSource = !state.source || getSpotSource(spot) === state.source;
     const matchesFavorite = !state.favoritesOnly || state.favorites.has(spot.id);
-    return matchesQuery && matchesRegion && matchesFish && matchesFishQuery && matchesCategory && matchesDifficulty && matchesMonth && matchesSource && matchesFavorite;
+    return matchesQuery && matchesRegion && matchesFish && matchesFishQuery && matchesCategory && matchesDifficulty && matchesTechnique && matchesMonth && matchesSource && matchesFavorite;
   });
+  if (state.technique) {
+    filtered.sort((a, b) => getSelectedTechniqueFit(b).score - getSelectedTechniqueFit(a).score);
+  }
+  return filtered;
 }
 
 function renderCards(filtered) {
@@ -341,11 +501,13 @@ function renderCards(filtered) {
     node.querySelector(".region-badge").textContent = `${spot.region} · ${spot.area}`;
     const difficulty = node.querySelector(".difficulty");
     const analyzedDifficulty = getAnalyzedDifficulty(spot);
+    const techniqueFit = getSelectedTechniqueFit(spot);
+    const topTechniques = state.technique && techniqueFit ? [techniqueFit] : getTopTechniqueFits(spot);
     difficulty.textContent = `${analyzedDifficulty.label}${analyzedDifficulty.inferred ? " · 자동 분석" : ""}`;
     difficulty.classList.add(analyzedDifficulty.level);
     node.querySelector("h2").textContent = spot.name;
     node.querySelector(".spot-description").textContent = spot.desc;
-    node.querySelector(".spot-meta").innerHTML = `<span>${spot.type}</span><span>${spot.season}</span><span>${spot.fish[0] || "어종 확인 필요"}</span>${spot.discovery ? '<span class="catalog-badge">탐색 후보</span>' : ""}${spot.curated ? '<span class="official-badge">좌표 확인</span>' : ""}${spot.official ? `<span class="official-badge">${spot.freshwater ? "큐레이션" : "공공데이터"}</span>` : ""}${spot.catalog ? `<span class="catalog-badge">${spot.catalogName || "바낚포"}</span>` : ""}`;
+    node.querySelector(".spot-meta").innerHTML = `<span>${spot.type}</span><span>${spot.season}</span><span>${spot.fish[0] || "어종 확인 필요"}</span>${topTechniques.length ? `<span class="technique-badge">${topTechniques[0].label} ${topTechniques[0].score}점</span>` : ""}${spot.discovery ? '<span class="catalog-badge">탐색 후보</span>' : ""}${spot.curated ? '<span class="official-badge">좌표 확인</span>' : ""}${spot.official ? `<span class="official-badge">${spot.freshwater ? "큐레이션" : "공공데이터"}</span>` : ""}${spot.catalog ? `<span class="catalog-badge">${spot.catalogName || "바낚포"}</span>` : ""}`;
     node.querySelector(".spot-card-main").addEventListener("click", () => selectSpot(spot.id, true));
     const saveButton = node.querySelector(".save-button");
     saveButton.classList.toggle("saved", state.favorites.has(spot.id));
@@ -410,6 +572,23 @@ function selectSpot(id, flyTo) {
   const sourceLinks = [...(spot.sources || []), ...mapSource].map((source) => `<a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.label}</a>`).join("");
   const monthProfile = getMonthProfile(spot);
   const analyzedDifficulty = getAnalyzedDifficulty(spot);
+  const techniqueFits = state.mode === "sea"
+    ? (state.technique ? [getSelectedTechniqueFit(spot)] : getTopTechniqueFits(spot))
+    : [];
+  const techniqueHtml = techniqueFits.length ? `
+    <section class="detail-section">
+      <h3>낚시법별 포인트 후보 추천</h3>
+      <div class="technique-fit-list">
+        ${techniqueFits.map((fit) => `
+          <div class="technique-fit">
+            <b>${fit.label} · ${fit.score}점</b>
+            <span>${fit.reasons.join(" · ") || "유형·수심·어종 기반 자동 분석"}</span>
+          </div>
+        `).join("")}
+      </div>
+      <p class="analysis-note">MEIS 해양환경 정보지도의 연안주제도·국가해양생태계 조사·갯벌/연안항/국가어항 레이어와 전자해도형 지형 판단 기준을 참고한 자동 후보 추천입니다.</p>
+    </section>
+  ` : "";
   document.getElementById("detailContent").innerHTML = `
     <p class="detail-kicker">${spot.region} · ${spot.area}</p>
     <h2>${spot.name}</h2>
@@ -432,6 +611,7 @@ function selectSpot(id, flyTo) {
       <h3>포인트 메모</h3>
       <div class="detail-tip">${spot.tip}</div>
     </section>
+    ${techniqueHtml}
     ${spot.catalog ? `<section class="detail-section"><h3>원문 기반 상세 정보</h3><div class="catalog-grid">${spot.depth ? `<span><b>수심</b>${spot.depth}</span>` : ""}${spot.bottom ? `<span><b>바닥 재질</b>${spot.bottom}</span>` : ""}${spot.rig ? `<span><b>채비</b>${spot.rig}</span>` : ""}${spot.bait ? `<span><b>미끼</b>${spot.bait}</span>` : ""}${spot.traffic ? `<span><b>교통·특징</b>${spot.traffic}</span>` : ""}</div></section>` : ""}
     ${sourceLinks ? `<section class="detail-section"><h3>확인한 출처</h3><div class="source-links">${sourceLinks}</div></section>` : ""}
   `;
@@ -461,6 +641,7 @@ function resetFilters() {
   state.fishQuery = "";
   state.category = null;
   state.difficulty = null;
+  state.technique = null;
   state.month = null;
   state.bestOnly = false;
   state.source = null;
