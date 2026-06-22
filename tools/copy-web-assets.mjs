@@ -10,6 +10,7 @@ const files = [
   "official-spots.js",
   "banakpo-spots.js",
   "danfish-spots.js",
+  "technique-candidates.js",
   "freshwater-spots.js",
   "national-freshwater-spots.js",
   "daeho-freshwater-spots.js",

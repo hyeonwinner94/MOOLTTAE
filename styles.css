@@ -162,6 +162,7 @@ button { cursor: pointer; }
 .spot-meta .official-badge { color: var(--sea-dark); background: #e4f2ef; font-weight: 700; }
 .spot-meta .catalog-badge { color: #4f4a8c; background: #eeecfb; font-weight: 700; }
 .spot-meta .technique-badge { color: #8a562b; background: #fff2dc; font-weight: 800; }
+.spot-meta .ai-badge { color: #9a4a2f; background: #fff0e9; font-weight: 800; }
 .save-button { align-self: flex-start; margin: 10px 10px 0 0; color: #b4c2c1; border: 0; background: transparent; font-size: 20px; line-height: 1; }
 .save-button.saved { color: var(--coral); }
 

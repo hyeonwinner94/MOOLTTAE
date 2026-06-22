@@ -32,7 +32,7 @@ function normalizeFishList(fishList = []) {
     .filter((name) => name && !invalidPattern.test(name)))];
 }
 
-const seaSpots = [...officialFishingSpots, ...banakpoFishingSpots, ...danfishFishingSpots]
+const seaSpots = [...officialFishingSpots, ...banakpoFishingSpots, ...danfishFishingSpots, ...techniqueCandidateSpots]
   .map((spot) => ({ ...spot, fish: normalizeFishList(spot.fish) }));
 const freshwaterSpots = [...freshwaterFishingSpots, ...nationalFreshwaterFishingSpots, ...daehoFreshwaterFishingSpots, ...osmFreshwaterExplorationSpots]
   .map((spot) => ({ ...spot, fish: normalizeFishList(spot.fish) }));
@@ -364,11 +364,11 @@ function createMarkers() {
     if (!isMappableSpot(spot)) return;
     const marker = L.circleMarker([spot.lat, spot.lng], {
       renderer: catalogRenderer,
-      radius: spot.discovery ? 5 : spot.catalog ? 6 : 7,
+      radius: spot.techniqueCandidate ? 4 : spot.discovery ? 5 : spot.catalog ? 6 : 7,
       color: "#fff",
-      weight: spot.catalog ? 1 : 2,
+      weight: spot.techniqueCandidate ? 1 : spot.catalog ? 1 : 2,
       fillColor: getMarkerColor(spot),
-      fillOpacity: spot.discovery ? 0.58 : spot.catalog ? 0.78 : 0.9
+      fillOpacity: spot.techniqueCandidate ? 0.46 : spot.discovery ? 0.58 : spot.catalog ? 0.78 : 0.9
     }).addTo(map);
     marker.bindTooltip(spot.name, { direction: "top", offset: [0, -8] });
     marker.on("click", () => selectSpot(spot.id, false));
@@ -419,7 +419,7 @@ function renderChips() {
   renderChipGroup("categoryFilters", state.mode === "sea" ? ["방파제·방조제", "섬·갯바위", "항구·선착장", "기타"] : ["저수지", "수로", "하천", "호수·강"], "category");
   renderChipGroup("difficultyFilters", ["초급", "중급", "숙련"], "difficulty");
   renderChipGroup("techniqueFilters", fishingTechniquePresets.map((preset) => preset.label), "technique");
-  renderChipGroup("sourceFilters", state.mode === "sea" ? ["바낚포", "DanFish", "공공데이터"] : ["큐레이션", "수역 탐색"], "source");
+  renderChipGroup("sourceFilters", state.mode === "sea" ? ["바낚포", "DanFish", "공공데이터", "AI 지형 추정"] : ["큐레이션", "수역 탐색"], "source");
 }
 
 function getSpotCategory(spot) {
@@ -442,6 +442,7 @@ function getSpotCategory(spot) {
 function getSpotSource(spot) {
   if (spot.discovery) return "수역 탐색";
   if (spot.freshwater) return "큐레이션";
+  if (spot.techniqueCandidate) return "AI 지형 추정";
   if (spot.catalogName === "DanFish") return "DanFish";
   if (spot.catalog) return "바낚포";
   if (spot.official) return "공공데이터";
@@ -507,7 +508,7 @@ function renderCards(filtered) {
     difficulty.classList.add(analyzedDifficulty.level);
     node.querySelector("h2").textContent = spot.name;
     node.querySelector(".spot-description").textContent = spot.desc;
-    node.querySelector(".spot-meta").innerHTML = `<span>${spot.type}</span><span>${spot.season}</span><span>${spot.fish[0] || "어종 확인 필요"}</span>${topTechniques.length ? `<span class="technique-badge">${topTechniques[0].label} ${topTechniques[0].score}점</span>` : ""}${spot.discovery ? '<span class="catalog-badge">탐색 후보</span>' : ""}${spot.curated ? '<span class="official-badge">좌표 확인</span>' : ""}${spot.official ? `<span class="official-badge">${spot.freshwater ? "큐레이션" : "공공데이터"}</span>` : ""}${spot.catalog ? `<span class="catalog-badge">${spot.catalogName || "바낚포"}</span>` : ""}`;
+    node.querySelector(".spot-meta").innerHTML = `<span>${spot.type}</span><span>${spot.season}</span><span>${spot.fish[0] || "어종 확인 필요"}</span>${topTechniques.length ? `<span class="technique-badge">${topTechniques[0].label} ${topTechniques[0].score}점</span>` : ""}${spot.techniqueCandidate ? '<span class="ai-badge">AI 추정</span>' : ""}${spot.discovery ? '<span class="catalog-badge">탐색 후보</span>' : ""}${spot.curated ? '<span class="official-badge">좌표 확인</span>' : ""}${spot.official ? `<span class="official-badge">${spot.freshwater ? "큐레이션" : "공공데이터"}</span>` : ""}${spot.catalog && !spot.techniqueCandidate ? `<span class="catalog-badge">${spot.catalogName || "바낚포"}</span>` : ""}`;
     node.querySelector(".spot-card-main").addEventListener("click", () => selectSpot(spot.id, true));
     const saveButton = node.querySelector(".save-button");
     saveButton.classList.toggle("saved", state.favorites.has(spot.id));
@@ -535,7 +536,7 @@ function renderMarkers(filtered) {
       layers.forEach((layer) => {
         if (!map.hasLayer(layer)) layer.addTo(map);
       });
-      marker.setRadius(state.selectedId === spot.id ? 9 : spot.discovery ? 5 : spot.catalog ? 6 : 7);
+      marker.setRadius(state.selectedId === spot.id ? 9 : spot.techniqueCandidate ? 4 : spot.discovery ? 5 : spot.catalog ? 6 : 7);
       marker.setStyle({ fillColor: state.selectedId === spot.id ? "#1d5960" : getMarkerColor(spot) });
     } else {
       layers.forEach((layer) => {
@@ -596,7 +597,8 @@ function selectSpot(id, flyTo) {
     ${spot.official ? `<p class="source-note">${spot.freshwater ? "공식 수계 데이터" : "공공데이터"} · ${spot.source} · ${spot.sourceCode}</p>` : ""}
     ${spot.curated ? `<p class="source-note">민물 노지 큐레이션 · ${spot.coordinateConfidence}</p>` : ""}
     ${spot.discovery ? `<p class="source-note">민물 수역 탐색 후보 · ${spot.coordinateConfidence}</p>` : ""}
-    ${spot.catalog ? `<p class="source-note">${spot.catalogName || "바낚포"} 원문 수집 · 포인트 ${spot.sourceCode} · 확인일 ${spot.checkedAt}</p>` : ""}
+    ${spot.techniqueCandidate ? `<p class="source-note">AI 지형 추정 후보 · 기준 포인트 ${spot.baseSpotName} · 확인일 ${spot.checkedAt}</p>` : ""}
+    ${spot.catalog && !spot.techniqueCandidate ? `<p class="source-note">${spot.catalogName || "바낚포"} 원문 수집 · 포인트 ${spot.sourceCode} · 확인일 ${spot.checkedAt}</p>` : ""}
     ${spot.warning ? `<div class="detail-warning">${spot.warning}</div>` : ""}
     <div class="detail-grid">
       <div class="detail-stat"><span>난이도</span><strong>${analyzedDifficulty.label}${analyzedDifficulty.inferred ? " · 자동 분석" : ""}${analyzedDifficulty.note ? ` · ${analyzedDifficulty.note}` : ""}</strong></div>

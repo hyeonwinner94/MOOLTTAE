@@ -1,4 +1,4 @@
-const CACHE = "moolttae-v4";
+const CACHE = "moolttae-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const APP_SHELL = [
   "./official-spots.js",
   "./banakpo-spots.js",
   "./danfish-spots.js",
+  "./technique-candidates.js",
   "./freshwater-spots.js",
   "./national-freshwater-spots.js",
   "./daeho-freshwater-spots.js",
